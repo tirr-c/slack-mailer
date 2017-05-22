@@ -1,0 +1,13 @@
+{
+  "name": "slack-mailer",
+  "version": "0.1.0",
+  "description": "Mailer bot for Slack",
+  "main": "app.js",
+  "author": "Tirr",
+  "license": "MIT",
+  "dependencies": {
+    "@slack/client": "^3.9.0",
+    "concat-stream": "^1.6.0",
+    "koa": "^2.2.0"
+  }
+}
