@@ -9,12 +9,12 @@ fs.writeFileAsync('pid', process.pid.toString()).catch(err => {
 });
 
 const botToken = process.env.SLACK_BOT_TOKEN || '';
-const web = new WebClient(botToken);
+// const web = new WebClient(botToken);
 
 const app = new Koa();
 
 app.use(async ctx => {
-  ctx.assert(ctx.method.toLowerCase === 'post', 406);
+  ctx.assert(ctx.method.toLowerCase() === 'post', 406);
   ctx.assert(ctx.path === '/notify', 404);
 
   const buffer = await new Promise((resolve, reject) => {
@@ -25,3 +25,5 @@ app.use(async ctx => {
 
   console.log(buffer.toString());
 });
+
+app.listen(3000);
