@@ -19,8 +19,8 @@ app.use(async ctx => {
 
   const buffer = await new Promise((resolve, reject) => {
     const concatStream = concat(resolve);
-    ctx.request.on('error', reject);
-    ctx.request.pipe(concatStream);
+    ctx.req.on('error', reject);
+    ctx.req.pipe(concatStream);
   });
 
   console.log(buffer.toString());
