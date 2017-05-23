@@ -2,6 +2,7 @@ const {WebClient} = require('@slack/client');
 const {fs} = require('./util');
 const Koa = require('koa');
 const concat = require('concat-stream');
+const {Form} = require('multiparty');
 
 fs.writeFileAsync('pid', process.pid.toString()).catch(err => {
   console.error(err);
@@ -17,13 +18,22 @@ app.use(async ctx => {
   ctx.assert(ctx.method.toLowerCase() === 'post', 406);
   ctx.assert(ctx.path === '/notify', 404);
 
-  const buffer = await new Promise((resolve, reject) => {
-    const concatStream = concat(resolve);
-    ctx.req.on('error', reject);
-    ctx.req.pipe(concatStream);
+  const {fields, files} = await new Promise((resolve, reject) => {
+    const form = new Form();
+    form.parse(ctx.req, (err, fields, files) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve({fields, files});
+    });
   });
 
-  console.log(buffer.toString());
+  console.log('Fields:');
+  console.log(fields);
+  console.log('Files:');
+  console.log(files);
+  ctx.status = 200;
 });
 
 app.listen(3000);

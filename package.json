@@ -8,6 +8,7 @@
   "dependencies": {
     "@slack/client": "^3.9.0",
     "concat-stream": "^1.6.0",
-    "koa": "^2.2.0"
+    "koa": "^2.2.0",
+    "multiparty": "^4.1.3"
   }
 }
