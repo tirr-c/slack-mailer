@@ -34,8 +34,6 @@ app.use(async ctx => {
     ctx.assert(valid, 400);
   }
 
-  console.log(fields.get('stripped-text'));
-  console.log();
   ctx.status = 200;
 });
 
