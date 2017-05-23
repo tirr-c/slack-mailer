@@ -1,9 +1,9 @@
 const {WebClient} = require('@slack/client');
 const {fs} = require('./util');
 const {MailgunVerifier} = require('./verifier');
+const parseBody = require('./parser').parse;
 const Koa = require('koa');
 const concat = require('concat-stream');
-const {Form} = require('multiparty');
 
 fs.writeFileAsync('pid', process.pid.toString()).catch(err => {
   console.error(err);
@@ -24,31 +24,17 @@ app.use(async ctx => {
   ctx.assert(ctx.method.toLowerCase() === 'post', 406);
   ctx.assert(ctx.path === '/notify', 404);
 
-  const {fields, files} = await new Promise((resolve, reject) => {
-    const form = new Form();
-    form.parse(ctx.req, (err, fields, files) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve({fields, files});
-    });
-  });
+  const {fields, files} = await parseBody(ctx.req);
 
   if (verifier !== null) {
-    const [timestamp] = fields.timestamp;
-    const [token] = fields.token;
-    const [signature] = fields.signature;
+    const timestamp = fields.get('timestamp');
+    const token = fields.get('token');
+    const signature = fields.get('signature');
     const valid = verifier.verify(timestamp, token, signature);
     ctx.assert(valid, 400);
   }
 
-  console.log(fields['body-plain'][0]);
-  console.log();
-  console.log('Files:');
-  for (const [file] of Object.values(files)) {
-    console.log(`  ${file.fieldName}: ${file.originalFilename} (${file.size} bytes)`);
-  }
+  console.log(fields.get('stripped-text'));
   console.log();
   ctx.status = 200;
 });
