@@ -1,6 +1,5 @@
 const {WebClient} = require('@slack/client');
-const {fs} = require('./util');
-const {MailgunVerifier} = require('./verifier');
+const {fs, slackEscape, MailgunVerifier} = require('./util');
 const parseBody = require('./parser').parse;
 const Koa = require('koa');
 const concat = require('concat-stream');
@@ -22,8 +21,9 @@ if (verifier === null) {
   console.log('MAILGUN_API_KEY not given, not verifying webhooks');
 }
 
-const app = new Koa();
+const fromRegex = /^\s*([^<]+)(?:<.+?>)?\s*$/;
 
+const app = new Koa();
 app.use(async ctx => {
   ctx.assert(ctx.method.toLowerCase() === 'post', 406);
   ctx.assert(ctx.path === '/notify', 404);
@@ -40,8 +40,10 @@ app.use(async ctx => {
 
   if (web !== null) {
     const subject = fields.get('subject');
-    const from = fields.get('from');
-    const text = fields.get('stripped-text');
+    const text = slackEscape(fields.get('stripped-text'));
+    const fromRaw = fields.get('from');
+    const fromRegexMatch = fromRegex.exec(fromRaw);
+    const from = fromRegexMatch === null ? fromRaw : fromRegexMatch[0];
     web.chat.postMessage(
       '#random',
       '메일이 도착했습니다.',
