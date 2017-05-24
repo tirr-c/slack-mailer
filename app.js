@@ -22,6 +22,34 @@ if (verifier === null) {
 }
 
 const fromRegex = /^\s*([^<]+?)\s*(?:<.+?>)?\s*$/;
+const usnRegex = /^\s*\[(USN-\d+-\d+)\] (.*?)\s*$/;
+
+function filterUSN(fields, files) {
+  const subject = fields.get('subject');
+  const subjectRegex = usnRegex.exec(subject);
+  if (subjectRegex === null) {
+    return {
+      filtered: false
+    };
+  }
+  const id = subjectRegex[1];
+  const title = subjectRegex[2];
+
+  const text = fields.get('body-plain');
+  const summary = text.substr(text.indexOf('Summary:\n\n')).split('\n\n')[1].replace('\n', ' ');
+
+  const versions = text.substr(text.indexOf('and its derivatives:\n\n')).split('\n\n')[1].split('\n').map(s => {
+    return s.substr(2);
+  });
+
+  return {
+    filtered: true,
+    id,
+    title,
+    summary,
+    versions
+  };
+}
 
 const app = new Koa();
 app.use(async ctx => {
@@ -43,28 +71,45 @@ app.use(async ctx => {
   console.log(`Subject: ${fields.get('subject')}`);
 
   if (web !== null) {
-    const subject = fields.get('subject');
-    const text = slackEscape(fields.get('stripped-text'));
-    const fromRaw = fields.get('from');
-    const fromRegexMatch = fromRegex.exec(fromRaw);
-    const from = fromRegexMatch === null ? fromRaw : fromRegexMatch[1];
-    web.chat.postMessage(
-      '#random',
-      '메일이 도착했습니다.',
-      {
-        link_names: false,
-        as_user: true,
-        attachments: [
-          {
-            fallback: subject,
-            author_name: from,
-            title: subject,
-            text: text,
-            ts: (new Date().getTime() / 1000 | 0).toString()
-          }
-        ]
-      }
-    );
+    let filtered = false;
+    const usn = filterUSN(fields, files);
+    if (usn.filtered) {
+      filtered = true;
+      const v = usn.versions.map(s => '\u2022 ' + s).join('\n');
+      const message = `*${usn.id}: ${usn.title}.* ${usn.summary}\n\n영향을 받는 버전은 다음과 같습니다:\n${v}`;
+      web.chat.postMessage(
+        '#security',
+        slackEscape(message),
+        {
+          link_names: false,
+          as_user: true
+        }
+      );
+    }
+    if (!filtered) {
+      const subject = fields.get('subject');
+      const text = slackEscape(fields.get('stripped-text'));
+      const fromRaw = fields.get('from');
+      const fromRegexMatch = fromRegex.exec(fromRaw);
+      const from = fromRegexMatch === null ? fromRaw : fromRegexMatch[1];
+      web.chat.postMessage(
+        '#random',
+        '메일이 도착했습니다.',
+        {
+          link_names: false,
+          as_user: true,
+          attachments: [
+            {
+              fallback: subject,
+              author_name: from,
+              title: subject,
+              text: text,
+              ts: (new Date().getTime() / 1000 | 0).toString()
+            }
+          ]
+        }
+      );
+    }
   }
   ctx.status = 200;
 });
