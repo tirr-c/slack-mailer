@@ -21,7 +21,7 @@ if (verifier === null) {
   console.log('MAILGUN_API_KEY not given, not verifying webhooks');
 }
 
-const fromRegex = /^\s*([^<]+)(?:<.+?>)?\s*$/;
+const fromRegex = /^\s*([^<]+?)\s*(?:<.+?>)?\s*$/;
 
 const app = new Koa();
 app.use(async ctx => {
@@ -47,7 +47,7 @@ app.use(async ctx => {
     const text = slackEscape(fields.get('stripped-text'));
     const fromRaw = fields.get('from');
     const fromRegexMatch = fromRegex.exec(fromRaw);
-    const from = fromRegexMatch === null ? fromRaw : fromRegexMatch[0];
+    const from = fromRegexMatch === null ? fromRaw : fromRegexMatch[1];
     web.chat.postMessage(
       '#random',
       '메일이 도착했습니다.',
