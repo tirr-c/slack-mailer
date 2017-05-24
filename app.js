@@ -38,6 +38,10 @@ app.use(async ctx => {
     ctx.assert(valid, 400);
   }
 
+  console.log('Received a mail:');
+  console.log(`From: ${fields.get('from')}`);
+  console.log(`Subject: ${fields.get('subject')}`);
+
   if (web !== null) {
     const subject = fields.get('subject');
     const text = slackEscape(fields.get('stripped-text'));
