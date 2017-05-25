@@ -142,25 +142,14 @@ app.use(async (ctx, next) => {
       );
     }
     if (!filtered) {
-      const text = slackEscape(fields.get('stripped-text'));
       const fromRegexMatch = fromRegex.exec(fromRaw);
       const from = fromRegexMatch === null ? fromRaw : fromRegexMatch[1];
       web.chat.postMessage(
         '#random',
-        '메일이 도착했습니다.',
+        `<https://bacchus.erika.vbchunguk.me/logs/${emailId}|${slackEscape(from)}님의 메일이 도착>했습니다.`,
         {
           link_names: false,
-          as_user: true,
-          attachments: [
-            {
-              fallback: subject,
-              author_name: from,
-              title: subject,
-              title_link: `https://bacchus.erika.vbchunguk.me/logs/${emailId}`,
-              text: text,
-              ts: (new Date().getTime() / 1000 | 0).toString()
-            }
-          ]
+          as_user: true
         }
       );
     }
