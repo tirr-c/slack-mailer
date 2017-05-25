@@ -38,7 +38,7 @@ function filterUSN(fields, files) {
   const title = subjectRegex[2];
 
   const text = fields.get('body-plain');
-  console.log(text);
+  console.log(require('util').inspect(text));
   const summary = text.substr(text.indexOf('Summary:\n\n')).split('\n\n')[1].replace('\n', ' ');
 
   const versions = text.substr(text.indexOf('and its derivatives:\n\n')).split('\n\n')[1].split('\n').map(s => {
