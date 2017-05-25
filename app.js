@@ -1,5 +1,7 @@
 const {WebClient} = require('@slack/client');
+const {Html5Entities} = require('html-entities');
 const {fs, slackEscape, MailgunVerifier} = require('./util');
+const {DataManager} = require('./data');
 const parseBody = require('./parser').parse;
 const Koa = require('koa');
 const concat = require('concat-stream');
@@ -20,6 +22,8 @@ if (web === null) {
 if (verifier === null) {
   console.log('MAILGUN_API_KEY not given, not verifying webhooks');
 }
+
+const data = new DataManager(`${__dirname}/data`);
 
 const fromRegex = /^\s*([^<]+?)\s*(?:<.+?>)?\s*$/;
 const usnRegex = /^\s*\[(USN-\d+-\d+)\] (.*?)\s*$/;
@@ -53,32 +57,81 @@ function filterUSN(fields, files) {
   };
 }
 
+const entities = new Html5Entities();
+function composeEmailResponse(emailData) {
+  const lines = ['<!DOCTYPE html>', '<html>', '<head>', '<meta charset="utf-8">'];
+  lines.push(`<title>${entities.encode(emailData.subject)}</title>`);
+  lines.push('</head>');
+  lines.push('<body>');
+  lines.push(`<h1>${entities.encode(emailData.subject)}</h1>`);
+  lines.push(`<p>From: ${entities.encode(emailData.from)}</p>`);
+  lines.push('<hr>');
+  lines.push('<pre>');
+  lines.push(entities.encode(emailData.body));
+  lines.push('</pre>');
+  lines.push('</body>');
+  lines.push('</html>');
+  return lines.join('');
+}
+
 const app = new Koa();
-app.use(async ctx => {
+
+app.use(async (ctx, next) => {
+  const path = require('path').dirname(ctx.path);
+  if (path !== '/logs') return await next();
+  const bn = require('path').basename(ctx.path);
+
+  try {
+    const emailData = await data.readJson(`${bn}.json`);
+    ctx.type = 'text/html';
+    ctx.body = composeEmailResponse(emailData);
+    ctx.status = 200;
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      ctx.throw(404, '존재하지 않는 이메일 ID입니다.');
+    }
+    ctx.throw(500);
+  }
+});
+
+app.use(async (ctx, next) => {
+  if (ctx.path !== '/notify') return await next();
   ctx.assert(ctx.method.toLowerCase() === 'post', 406);
-  ctx.assert(ctx.path === '/notify', 404);
 
   const {fields, files} = await parseBody(ctx.req);
 
+  const timestamp = fields.get('timestamp');
+  const token = fields.get('token');
+  const signature = fields.get('signature');
+  const emailId = `${timestamp}-${token}`;
   if (verifier !== null) {
-    const timestamp = fields.get('timestamp');
-    const token = fields.get('token');
-    const signature = fields.get('signature');
     const valid = verifier.verify(timestamp, token, signature);
     ctx.assert(valid, 400);
   }
 
+  const subject = fields.get('subject');
+  const fromRaw = fields.get('from');
+  const body = fields.get('body-plain');
+  const emailData = {
+    subject,
+    from: fromRaw,
+    body
+  };
+  data.writeJson(`${emailId}.json`, emailData).catch(console.error);
+
   console.log('Received a mail:');
-  console.log(`From: ${fields.get('from')}`);
-  console.log(`Subject: ${fields.get('subject')}`);
+  console.log(`From: ${fromRaw}`);
+  console.log(`Subject: ${subject}`);
 
   if (web !== null) {
     let filtered = false;
     const usn = filterUSN(fields, files);
     if (usn.filtered) {
       filtered = true;
-      const v = usn.versions.map(s => '\u2022 ' + s).join('\n');
-      const message = `*${usn.id}: ${usn.title}.* ${usn.summary}\n\n영향을 받는 버전은 다음과 같습니다:\n${v}`;
+      const v = usn.versions.map(s => slackEscape('\u2022 ' + s)).join('\n');
+      const message =
+        `*<https://bacchus.erika.vbchunguk.me/logs/${emailId}|${usn.id}: ${slackEscape(usn.title)}.>* ` +
+        `${slackEscape(usn.summary)}\n\n영향을 받는 버전은 다음과 같습니다:\n${v}`;
       web.chat.postMessage(
         '#security',
         slackEscape(message),
@@ -89,9 +142,7 @@ app.use(async ctx => {
       );
     }
     if (!filtered) {
-      const subject = fields.get('subject');
       const text = slackEscape(fields.get('stripped-text'));
-      const fromRaw = fields.get('from');
       const fromRegexMatch = fromRegex.exec(fromRaw);
       const from = fromRegexMatch === null ? fromRaw : fromRegexMatch[1];
       web.chat.postMessage(
@@ -105,6 +156,7 @@ app.use(async ctx => {
               fallback: subject,
               author_name: from,
               title: subject,
+              title_link: `https://bacchus.erika.vbchunguk.me/logs/${emailId}`,
               text: text,
               ts: (new Date().getTime() / 1000 | 0).toString()
             }
