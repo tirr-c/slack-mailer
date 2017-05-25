@@ -146,7 +146,7 @@ app.use(async (ctx, next) => {
       const from = fromRegexMatch === null ? fromRaw : fromRegexMatch[1];
       web.chat.postMessage(
         '#random',
-        `<https://bacchus.erika.vbchunguk.me/logs/${emailId}|${slackEscape(from)}님의 메일이 도착>했습니다.`,
+        `${slackEscape(from)}님의 메일이 도착했습니다: *<https://bacchus.erika.vbchunguk.me/logs/${emailId}|${slackEscape(subject)}>*`,
         {
           link_names: false,
           as_user: true
