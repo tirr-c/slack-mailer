@@ -134,7 +134,7 @@ app.use(async (ctx, next) => {
         `${slackEscape(usn.summary)}\n\n영향을 받는 버전은 다음과 같습니다:\n${v}`;
       web.chat.postMessage(
         '#security',
-        slackEscape(message),
+        message,
         {
           link_names: false,
           as_user: true
