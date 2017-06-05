@@ -1,10 +1,10 @@
 const {WebClient} = require('@slack/client');
 const {Html5Entities} = require('html-entities');
+const Koa = require('koa');
 const {fs, slackEscape, MailgunVerifier} = require('./util');
 const {DataManager} = require('./data');
 const parseBody = require('./parser').parse;
-const Koa = require('koa');
-const concat = require('concat-stream');
+const filter = require('./filter');
 
 fs.writeFileAsync('pid', process.pid.toString()).catch(err => {
   console.error(err);
@@ -25,53 +25,16 @@ if (verifier === null) {
 
 const data = new DataManager(`${__dirname}/data`);
 
-const fromRegex = /^\s*([^<]+?)\s*(?:<.+?>)?\s*$/;
-const usnRegex = /^\s*\[(USN-\d+-\d+)\] (.*?)\s*$/;
-
-function filterUSN(fields, files) {
-  const subject = fields.get('subject');
-  const subjectRegex = usnRegex.exec(subject);
-  if (subjectRegex === null) {
-    return {
-      filtered: false
-    };
-  }
-
-  console.log('Filtering USN');
-  const id = subjectRegex[1];
-  const title = subjectRegex[2];
-
-  const text = fields.get('body-plain').replace(/\r\n/g, '\n');
-  const summary = text.substr(text.indexOf('Summary:\n\n')).split('\n\n')[1].replace(/\n/g, ' ');
-
-  const versions = text.substr(text.indexOf('and its derivatives:\n\n')).split('\n\n')[1].split('\n').map(s => {
-    return s.substr(2);
-  });
-
-  return {
-    filtered: true,
-    id,
-    title,
-    summary,
-    versions
-  };
-}
-
 const entities = new Html5Entities();
-function composeEmailResponse(emailData) {
-  const lines = ['<!DOCTYPE html>', '<html>', '<head>', '<meta charset="utf-8">'];
-  lines.push(`<title>${entities.encode(emailData.subject)}</title>`);
-  lines.push('</head>');
-  lines.push('<body>');
-  lines.push(`<h1>${entities.encode(emailData.subject)}</h1>`);
-  lines.push(`<p>From: ${entities.encode(emailData.from)}</p>`);
-  lines.push('<hr>');
-  lines.push('<pre>');
-  lines.push(entities.encode(emailData.body));
-  lines.push('</pre>');
-  lines.push('</body>');
-  lines.push('</html>');
-  return lines.join('');
+function composeEmailPage(emailData) {
+  return (
+    `<!DOCTYPE html><html><head><meta charset="utf-8">` +
+    `<title>${entities.encode(emailData.subject)}</title></head><body>` +
+    `<h1>${entities.encode(emailData.subject)}</h1>` +
+    `<p>From: ${entities.encode(emailData.from)}</p><hr><pre>` +
+    entities.encode(emailData.body) +
+    '</pre></body></html>'
+  );
 }
 
 const app = new Koa();
@@ -84,7 +47,7 @@ app.use(async (ctx, next) => {
   try {
     const emailData = await data.readJson(`${bn}.json`);
     ctx.type = 'text/html';
-    ctx.body = composeEmailResponse(emailData);
+    ctx.body = composeEmailPage(emailData);
     ctx.status = 200;
   } catch (err) {
     if (err.code === 'ENOENT') {
@@ -109,50 +72,24 @@ app.use(async (ctx, next) => {
     ctx.assert(valid, 400);
   }
 
-  const subject = fields.get('subject');
-  const fromRaw = fields.get('from');
-  const body = fields.get('body-plain');
   const emailData = {
-    subject,
-    from: fromRaw,
-    body
+    subject: fields.get('subject'),
+    from: fields.get('from'),
+    body: fields.get('body-plain')
   };
   data.writeJson(`${emailId}.json`, emailData).catch(console.error);
-
-  console.log('Received a mail:');
-  console.log(`From: ${fromRaw}`);
-  console.log(`Subject: ${subject}`);
+  console.log(`Received a mail: ${emailId}`);
 
   if (web !== null) {
-    let filtered = false;
-    const usn = filterUSN(fields, files);
-    if (usn.filtered) {
-      filtered = true;
-      const v = usn.versions.map(s => slackEscape('\u2022 ' + s)).join('\n');
-      const message =
-        `*<https://bacchus.erika.vbchunguk.me/logs/${emailId}|${usn.id}: ${slackEscape(usn.title)}.>* ` +
-        `${slackEscape(usn.summary)}\n\n영향을 받는 버전은 다음과 같습니다:\n${v}`;
-      web.chat.postMessage(
-        '#security',
-        message,
-        {
-          link_names: false,
-          as_user: true
-        }
-      );
-    }
-    if (!filtered) {
-      const fromRegexMatch = fromRegex.exec(fromRaw);
-      const from = fromRegexMatch === null ? fromRaw : fromRegexMatch[1];
-      web.chat.postMessage(
-        '#random',
-        `${slackEscape(from)}님의 메일이 도착했습니다: *<https://bacchus.erika.vbchunguk.me/logs/${emailId}|${slackEscape(subject)}>*`,
-        {
-          link_names: false,
-          as_user: true
-        }
-      );
-    }
+    const slack = await filter(emailId, fields, files);
+    web.chat.postMessage(
+      slack.channel,
+      slack.message,
+      {
+        link_names: false,
+        as_user: true
+      }
+    );
   }
   ctx.status = 200;
 });

@@ -8,7 +8,6 @@
   "dependencies": {
     "@slack/client": "^3.9.0",
     "busboy": "^0.2.14",
-    "concat-stream": "^1.6.0",
     "html-entities": "^1.2.1",
     "koa": "^2.2.0"
   }
