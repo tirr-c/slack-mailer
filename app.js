@@ -82,14 +82,16 @@ app.use(async (ctx, next) => {
 
   if (web !== null) {
     const slack = await filter(emailId, fields, files);
-    web.chat.postMessage(
-      slack.channel,
-      slack.message,
-      {
-        link_names: false,
-        as_user: true
-      }
-    );
+    if (slack !== null) {
+      web.chat.postMessage(
+        slack.channel,
+        slack.message,
+        {
+          link_names: false,
+          as_user: true
+        }
+      );
+    }
   }
   ctx.status = 200;
 });
