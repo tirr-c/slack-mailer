@@ -3,7 +3,7 @@ const {Html5Entities} = require('html-entities');
 const Koa = require('koa');
 const {fs, slackEscape, MailgunVerifier} = require('./util');
 const {DataManager} = require('./data');
-const parseBody = require('./parser').parse;
+const {parse: parseBody} = require('./parser');
 const filter = require('./filter');
 
 fs.writeFileAsync('pid', process.pid.toString()).catch(err => {
