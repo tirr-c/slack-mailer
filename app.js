@@ -15,7 +15,11 @@ const botToken = process.env.SLACK_BOT_TOKEN || null
 const apiKey = process.env.MAILGUN_API_KEY || null;
 const verifier = apiKey ? new MailgunVerifier(apiKey) : null;
 const web = botToken ? new WebClient(botToken) : null;
-
+const serverPort = (p => {
+  if (process.env.SERVER_PORT) return process.env.SERVER_PORT;
+  console.log(`SERVER_PORT not given, defaults to ${p}`);
+  return p;
+})(3000);
 if (web === null) {
   console.log('SLACK_BOT_TOKEN not given, not relaying to Slack');
 }
@@ -96,4 +100,4 @@ app.use(async (ctx, next) => {
   ctx.status = 200;
 });
 
-app.listen(3000);
+app.listen(serverPort);
