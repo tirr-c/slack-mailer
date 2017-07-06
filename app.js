@@ -55,7 +55,7 @@ app.use(async (ctx, next) => {
     ctx.status = 200;
   } catch (err) {
     if (err.code === 'ENOENT') {
-      ctx.throw(404, '존재하지 않는 이메일 ID입니다.');
+      ctx.throw(404, 'Email ID given does not exist.');
     }
     ctx.throw(500);
   }
