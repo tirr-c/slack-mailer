@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 
+// TODO: Use bluebird instead?
 function promisify(f) {
   return function (...args) {
     return new Promise((res, rej) => {
@@ -9,7 +10,7 @@ function promisify(f) {
         else res(ret);
       });
     });
-  }
+  };
 }
 
 function setTimeoutAsync(delay) {
@@ -37,7 +38,7 @@ class MailgunVerifier {
 };
 
 function slackEscape(text) {
-  return text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;');
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 module.exports = {
