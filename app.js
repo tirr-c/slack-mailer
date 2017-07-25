@@ -16,7 +16,14 @@ const apiKey = process.env.MAILGUN_API_KEY || null;
 const verifier = apiKey ? new MailgunVerifier(apiKey) : null;
 const web = botToken ? new WebClient(botToken) : null;
 const serverPort = (p => {
-  if (process.env.SERVER_PORT) return process.env.SERVER_PORT;
+  if (process.env.SERVER_PORT) {
+    const port = parseInt(process.env.SERVER_PORT, 10);
+    if (Number.isNaN(port)) {
+      console.log(`SERVER_PORT is not a number, defaults to ${p}`);
+      return p;
+    }
+    return port;
+  }
   console.log(`SERVER_PORT not given, defaults to ${p}`);
   return p;
 })(3000);
