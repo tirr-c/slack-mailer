@@ -1,4 +1,4 @@
-const {slackEscape, baseUrl} = require('./filter-util');
+const {slackEscape} = require('./filter-util');
 
 const fromRegex = /^\s*([^<]+?)\s*(?:<.+?>)?\s*$/;
 
@@ -13,10 +13,10 @@ async function filterDefault(fields, files) {
   };
 }
 
-function default2Slack(emailId, resp) {
+function default2Slack(emailId, origin, resp) {
   const message =
     `${slackEscape(resp.from)}님의 메일이 도착했습니다: ` +
-    `*<${baseUrl}/logs/${emailId}|${slackEscape(resp.subject)}>*`;
+    `*<${origin}/logs/${emailId}|${slackEscape(resp.subject)}>*`;
   const channel = '#random';
   return {
     channel,

@@ -85,7 +85,7 @@ app.use(async (ctx, next) => {
   console.log(`Received a mail: ${emailId}`);
 
   if (web !== null) {
-    const slack = await filter(emailId, fields, files);
+    const slack = await filter(emailId, ctx.request.origin, fields, files);
     if (slack !== null) {
       web.chat.postMessage(
         slack.channel,

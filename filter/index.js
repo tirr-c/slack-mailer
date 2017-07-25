@@ -1,4 +1,4 @@
-const {slackEscape, baseUrl} = require('./filter-util');
+const {slackEscape} = require('./filter-util');
 
 const filters = require('./filters.json').concat({
   name: 'default',
@@ -18,7 +18,7 @@ const filters = require('./filters.json').concat({
   }
 }).filter(i => i !== null);
 
-async function filter(emailId, fields, files) {
+async function filter(emailId, origin, fields, files) {
   for (const f of filters) {
     if (f.filter === null) {
       console.log(`Ignoring filter ${f.name}: no filter method`);
@@ -31,7 +31,7 @@ async function filter(emailId, fields, files) {
         console.log(`${f.name}: Performing action for ${emailId}`);
         await f.action(emailId, resp);
       }
-      const slack = f.convert === null ? null : f.convert(emailId, resp);
+      const slack = f.convert === null ? null : f.convert(emailId, origin, resp);
       return slack;
     } catch(e) {
       if (e != null) console.error(`Error processing filter ${f.name}:`, e);

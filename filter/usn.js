@@ -1,4 +1,4 @@
-const {slackEscape, baseUrl} = require('./filter-util');
+const {slackEscape} = require('./filter-util');
 
 const usnRegex = /^\s*\[(USN-\d+-\d+)\] (.*?)\s*$/;
 
@@ -27,10 +27,10 @@ async function filterUSN(fields, files) {
   };
 }
 
-function USN2Slack(emailId, resp) {
+function USN2Slack(emailId, origin, resp) {
   const v = resp.versions.map(s => slackEscape('\u2022 ' + s)).join('\n');
   const message =
-    `*<${baseUrl}/logs/${emailId}|${resp.id}: ${slackEscape(resp.title)}.>* ` +
+    `*<${origin}/logs/${emailId}|${resp.id}: ${slackEscape(resp.title)}.>* ` +
     `${slackEscape(resp.summary)}\n` +
     `영향을 받는 버전은 다음과 같습니다:\n${v}`;
   const channel = '#security';
