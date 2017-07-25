@@ -27,6 +27,7 @@ const serverPort = (p => {
   console.log(`SERVER_PORT not given, defaults to ${p}`);
   return p;
 })(3000);
+const proxied = !process.env.WITHOUT_PROXY;
 if (web === null) {
   console.log('SLACK_BOT_TOKEN not given, not relaying to Slack');
 }
@@ -49,6 +50,7 @@ function composeEmailPage(emailData) {
 }
 
 const app = new Koa();
+app.proxy = proxied;
 
 app.use(async (ctx, next) => {
   const path = require('path').dirname(ctx.path);
